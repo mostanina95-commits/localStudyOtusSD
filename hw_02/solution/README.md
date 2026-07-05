@@ -119,8 +119,10 @@
 
 
 
-Диаграммы согласно C4 - Context, Container
- 
+## Диаграммы 
+согласно C4 - Context, Container
+<img width="981" height="601" alt="hw2 drawio" src="https://github.com/user-attachments/assets/27b8a3c7-d514-44d4-8714-6d541490b9e6" />
+
 
 
 ## 2. Протоколы
