@@ -141,6 +141,7 @@
 <img width="1441" height="981" alt="Untitled 4 drawio" src="https://github.com/user-attachments/assets/8f0456d5-cb0e-465e-9064-3b2e2ffc74d9" />
 
 ### 2.3 C4 - Container (services)
+<img width="3084" height="1952" alt="2 3 C4 - Container (services)24072026 drawio" src="https://github.com/user-attachments/assets/718e4da9-7e61-4cb0-a0c4-7e7d658900cb" />
 
 
 ## 3. Протоколы
