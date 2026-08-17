@@ -132,13 +132,13 @@
 ## 2. Диаграммы 
 согласно C4 - Context, Container
 ### 2.1 C4 - Context
-<img width="981" height="601" alt="HW1 Context1 drawio" src="https://github.com/user-attachments/assets/c8b7abbd-5d64-4217-8bf5-b0574f1fe362" />
+[Схема](https://github.com/mostanina95-commits/localStudyOtusSD/blob/4f4e1053db86a1e2c40aba467ae7030e8e8e9130/hw_02/solution/diagrams/2.1%20C4%20-%20Context.drawio.png)
 
 ### 2.2 C4 - Container (general)
-<img width="1441" height="981" alt="Untitled 4 drawio" src="https://github.com/user-attachments/assets/8f0456d5-cb0e-465e-9064-3b2e2ffc74d9" />
+[Схема](https://github.com/mostanina95-commits/localStudyOtusSD/blob/4f4e1053db86a1e2c40aba467ae7030e8e8e9130/hw_02/solution/diagrams/2.2%20C4%20-%20Container%20(general).drawio.png)
 
 ### 2.3 C4 - Container (services)
-![Uploading 2.3 C4 - Container (services).drawio_1.png…]()
+[Схема](https://github.com/mostanina95-commits/localStudyOtusSD/blob/4f4e1053db86a1e2c40aba467ae7030e8e8e9130/hw_02/solution/diagrams/2.3%20C4%20-%20Container%20(services).drawio_1.png)
 
 
 ## 3. Протоколы
@@ -293,6 +293,10 @@ end
 
 ## 6. Асинхронность 
 Применяется в сборе аналитики, при передаче уведомлений и рассылок клиентам, данных для поиска - в сценариях, где не требуется немедленный ответ от сервиса
+Применены паттерны:
+1. Обработка пиковой нагрузки Peak Buffer - примерно 10 000 - 100 000+ RPS (обед, ужин)
+2. 
+
 
 ## 7. Паттерны
 Event Sourcing - аналитика и уведомления
