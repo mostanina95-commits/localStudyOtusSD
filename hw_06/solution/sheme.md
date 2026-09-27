@@ -151,7 +151,10 @@ ADR для 2-3 ключевых решений
 Хранение файлов PDF сгенерированных билетов для возможности скачивания пользователям. Сервисами выдается ссылка на файл
 
 ### 2.2 Схема концептуальной архитектуры (C4: Context + Container)
-**ЗАПОЛНИТЬ СХЕМУ**
+
+**ЗАПОЛНИТЬ СХЕМУ ACTIVITY**
+
+**ЗАПОЛНИТЬ СХЕМУ C4**
 
 ### 2.3. Обоснование архитектурного стиля
 1. В текущем решении используется микросервисная архитектура в связи с потребностью масштабирования, отказоустойчивости при повышении количества пользователей, с поддержкой пиковой нагрузки и геораспределенностью (дата-центры в регионах России).
@@ -403,15 +406,17 @@ P (Partition Tolerance) — доступность при разрыве сет�
 
 Уточнение - Топики Kafka разделены по доменам:
 1. Данные бронирования (booking)
-- Источник - Сервис бронирования
-- Потребители - Сервис уведомлений, Сервис аналитики, Сервис билетов, Сервис поиска
-2. Данные мероприятия (event)
-- Источник - Сервис мероприятий
-- Потребители - Сервис уведомлений, Сервис аналитики, Сервис билетов, Сервис бронирования, Сервис поиска
-3. Данные билетов (ticket)
-- Источник - Сервис билетов
-- Потребители - Сервис уведомлений, Сервис аналитики, Сервис бронирования, Сервис поиска
-- 
+Источник - Сервис бронирования
+Потребители - Сервис уведомлений, Сервис аналитики, Сервис билетов, Сервис поиска
+
+3. Данные мероприятия (event)
+Источник - Сервис мероприятий
+Потребители - Сервис уведомлений, Сервис аналитики, Сервис билетов, Сервис бронирования, Сервис поиска
+
+5. Данные билетов (ticket)
+Источник - Сервис билетов
+Потребители - Сервис уведомлений, Сервис аналитики, Сервис бронирования, Сервис поиска
+  
 | Процесс                                                                                       | Сервис 1                                                    | Сервис 2                                                                                          | Протокол                                    | Почему выбран                                                                                                                               |
 |-----------------------------------------------------------------------------------------------|-------------------------------------------------------------|---------------------------------------------------------------------------------------------------|---------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
 | Работа пользователя <br>с системой                                                            | WEB-приложение клиента/ организатора                        | CDN                                                                                               | REST API (HTTP 2/ JSON)                     | Двухнаправленное взаимодействие <br>с пользователем<br>в режиме реального времени                                                           |
@@ -433,23 +438,237 @@ P (Partition Tolerance) — доступность при разрыве сет�
 | Уведомления о бронировании/ билетах                                                           | Сервис уведомлений                                          | Внешний провайдер уведомлений <br>(смс/емайл)                                                     | REST API внешней системы <br>(HTTP 2/ JSON) | Внутренний сервис подключается <br>к внешней системе через опубликованный <br>открытый публичный контракт                                   |
 | Получение/ передача <br>данных о мероприятиях                                                 | Сервис управления мероприятиями                             | Внешний сервис партнера мероприятий (площадок)                                                    | REST API внешней системы <br>(HTTP 2/ JSON) | Внутренний сервис подключается <br>к внешней системе через опубликованный <br>открытый публичный контракт                                   |
 
-Сценарии:
-1. Поиск меро
-1. Бронирование билетов с поиском геолокации
-**Бронирование билета**: АПИ-> Сервис авторизации -> Redis -> Сервис бронирования -> API-> Сервис билетов API-> Сервис бронирования (ссылка на билет/QR) -> Сервис уведомлений (смс/приложение/емайл) -> Интерфейс
-**Открытие ссылки на билет:** Интерфейс -> ссылка и QR на билет-> Хранилище билетов S3 (Stateful) 
-
-2. Загрузка данных о мероприятии от организатора и выгрузка в основной топик
-**Загрузка мероприятий:** АПИ-> Мероприятия-> Топик -> Сервис бронирования, Сервис аналитики, уведомлений, поиска
-
-3. Оплата билета
-
-4. Аутентификация
-
-
 ### Ключевые API (3-5 контрактов)
-API для организаторов (управление мероприятиями)
 
+
+### Схемы взаимодействия сервисов
+
+Сценарии:
+##### Поиск ближайших мероприятий и бронирование билетов
+1. Клиент открывает сайт/мобильное приложение и начинает поиск ближайших мероприятий
+2. Проверка доступа пользователя, его авторизация и аутентификация
+   1. **Интерфейс → CDN**: REST/HTTPS (возвращает данные, если есть в кэш)
+   2. **CDN → Load Balancer**: Cache Miss (если данных в кэш CDN нет, запрос данных)
+   3. **Load Balancer → API Gateway**: REST/HTTP маршрутизация запроса к API 
+   4. **API Gateway → Auth Service**: gRPC (запрос данных токена доступа)
+   5. **Auth Service → PostgreSQL**: SQL (запрос данных токена доступа)
+   6. **Auth Service → Redis**: RESP (запрос данных токена доступа из кэш)
+   7. **Auth Service → API Gateway**: gRPC (токены)
+   8. **API Gateway → Load Balancer**: REST/HTTP (передача ответа данных доступа пользователя)
+   9. **Load Balancer → CDN**: REST/HTTP (передача ответа данных доступа пользователя)
+   10. **CDN → Интерфейс**: REST/HTTPS (токены)
+3. Авторизованный клиент с доступом ищет ближайшие мероприятия
+   1. **Интерфейс → CDN**: GET запрос на данные мероприятий (возвращает данные, если есть в кэш) с параметрами - тематика, тип мероприятия, коррдинаты пользователя
+   2. **CDN → Load Balancer**: Cache Miss (если данных в кэш CDN нет, запрос данных)
+   3. **Load Balancer → API Gateway**: REST/HTTP маршрутизация запроса к API с параметрами - тематика, тип мероприятия, коррдинаты пользователя
+   4. **API Gateway → Search Service**: gRPC (запрос данных мероприятия у сервиса поиска, если данные есть) с параметрами - тематика, тип мероприятия, коррдинаты пользователя
+   5. **Search Service → Redis**: RESP - запрос данных мероприятия из кэш, если данные есть, нужно, чтобы менее нагружать Elasticsearch
+   6. **Redis → Search Service**: В ответ передаются данные мерпориятий ранее закэшированные
+   7. **Search Service → Elasticsearch**: HTTPS - если данные из Redis не найдены, то запрос напрямую к Elasticsearch
+   8. **Elasticsearch → Search Service**: REST/HTTP (результаты)
+   9. **Search Service → Redis**: RESP (сервис поиска сохраняет данные в кэш, которые были получены из Elasticsearch)
+   10. **Search Service → API Gateway**: gRPC (передача результатов поиска)
+   11. **API Gateway → LB**: HTTP (передача результатов поиска)
+   12. **LB → CDN**: HTTP (передача результатов поиска)
+   13. **CDN → Интерфейс**: HTTPS (передача результатов поиска)
+
+# Сценарий: Поиск ближайших мероприятий
+
+```mermaid
+sequenceDiagram
+    participant User as Интерфейс
+    participant CDN as CDN
+    participant LB as Load Balancer
+    participant GW as API Gateway
+    participant Auth as Auth Service
+    participant Search as Search Service
+    participant Redis as Redis
+    participant PG as PostgreSQL
+    participant ES as Elasticsearch
+
+    Note over User,ES: ЧАСТЬ 1: АУТЕНТИФИКАЦИЯ
+
+    User->>CDN: 1. POST /auth/verify
+    CDN->>LB: 2. Origin request
+    LB->>GW: 3. HTTP
+    GW->>Auth: 4. gRPC VerifyJWT
+    Auth->>Redis: 5. RESP GET blacklist
+    Redis-->>Auth: 6. OK
+    Auth->>Redis: 7. RESP GET session
+    Redis-->>Auth: 8. OK
+    Auth->>PG: 9. SQL SELECT permissions
+    PG-->>Auth: 10. ["events:read"]
+    Auth-->>GW: 11. gRPC OK
+    GW-->>LB: 12. HTTP
+    LB-->>CDN: 13. HTTP
+    CDN-->>User: 14. HTTPS токены
+
+    Note over User,ES: ЧАСТЬ 2: ПОИСК
+
+    User->>CDN: 15. GET /search/events?q=концерт
+    alt CDN Cache Hit
+        CDN-->>User: 16. Результаты (5 мс)
+    else CDN Cache Miss
+        CDN->>LB: 17. Origin request
+        LB->>GW: 18. HTTP
+        GW->>GW: 19. JWT + Rate Limit
+        GW->>Search: 20. gRPC SearchEvents
+        Search->>Redis: 21. RESP GET search:{hash}
+        alt Redis Cache Hit
+            Redis-->>Search: 22. Результаты (0.5 мс)
+        else Redis Cache Miss
+            Redis-->>Search: 23. nil
+            Search->>ES: 24. HTTPS _search
+            ES-->>Search: 25. Результаты (15 мс)
+            Search->>Redis: 26. RESP SETEX search:{hash} 300
+        end
+        Search->>Search: 27. Пост-обработка
+        Search-->>GW: 28. gRPC Результаты
+        GW-->>LB: 29. HTTP
+        LB-->>CDN: 30. HTTP
+        CDN->>CDN: 31. Кэш (60 сек)
+        CDN-->>User: 32. HTTPS Результаты
+    end
+```
+   
+4. Клиент на сайте/мобильного приложения выбирает нужный билет и нажимает кнопку для начала бронирования и покупки билета
+   1. **Интерфейс → CDN**: REST/HTTPS передается запрос о бронировании, CDN получает запрос и маршрутизирует на сервер пользователя по местоположению
+   2. **CDN → Load Balancer**: REST/HTTPS передается запрос о бронировании
+   3. **Load Balancer → API Gateway**: REST/HTTPS передается запрос о бронировании
+   4. **API Gateway → Booking service**: gRPC запрос на начало бронирования
+   2. **Booking service → Redis**: RESP проверка места на доступность (если данные есть, передача ответа)
+   3. **Redis → Booking service** : ответ по статусу доступности места
+   4. **Booking service → PostgreSQL**: SQL - создание места и запись в БД
+   5. **Booking service → топик Kafka**: брокер сообщений: публикация события о статусе создания бронирования
+   6. **Booking service → Payment Service**: gRPC запрос на создание оплаты (платежа)
+   7. **Payment Service → Внешняя система банка-клиента**: REST/HTTPS запрос на создание оплаты (платежа), ответ по статусу
+   8. **Payment Service → PostgreSQL**: SQL - создание платежа и запись в БД
+   9. **Payment Service → Booking service**: gRPC передача ответа - статуса оплаты (если неуспешно, то отмена платежа)
+   10. **Booking service → топик Kafka**: брокер сообщений: публикация события о статусе оплаты бронирования
+   11. **топик Kafka → Analytics Service, Notification Service, Ticket Service**: брокер сообщений: публикация события о статусе оплаты бронирования
+   12. **Ticket Service → PostgreSQL**: SQL - создание билета по факту оплаты и запись в БД
+   13. **Ticket Service → топик Kafka**: брокер сообщений: публикация события о статусе билета
+   14. **топик Kafka → Analytics Service, Notification Service, Booking service**: брокер сообщений: публикация события о статусе билета для бронирования
+   15. **Booking service → API Gateway**: gRPC запрос по статусу бронирования
+   16. **API Gateway → LB**: HTTP (передача результатов бронирования)
+   17. **LB → CDN**: HTTP (передача результатов бронирования)
+   18. **CDN → Интерфейс**: HTTPS (передача результатов бронирования)
+   19. **Notification Service → Внешний сервис провайдера для уведомлений**: REST/HTTPS передача запроса к отправке уведомления о билете (смс/емайл/пуш)
+
+# Сценарий: Бронирование и покупка билета
+```mermaid
+sequenceDiagram
+    participant User as Интерфейс
+    participant CDN as CDN
+    participant LB as Load Balancer
+    participant GW as API Gateway
+    participant Booking as Booking Service
+    participant Redis as Redis
+    participant PG as PostgreSQL
+    participant Kafka as Kafka
+    participant Payment as Payment Service
+    participant Bank as Внешний банк
+    participant Ticket as Ticket Service
+    participant Notify as Notification Service
+    participant Analytics as Analytics Service
+    participant External as Внешний провайдер
+
+    Note over User,External: ЭТАП 1: НАЧАЛО БРОНИРОВАНИЯ
+
+    User->>CDN: 1. POST /booking (REST/HTTPS)
+    activate CDN
+    CDN->>LB: 2. POST /booking (REST/HTTPS)
+    deactivate CDN
+    activate LB
+    LB->>GW: 3. POST /booking (REST/HTTPS)
+    deactivate LB
+    activate GW
+    GW->>Booking: 4. gRPC CreateBooking
+    activate Booking
+
+    Note over User,External: ЭТАП 2: ПРОВЕРКА МЕСТА
+
+    Booking->>Redis: 5. RESP GET lock:seat:event_123:seat_15
+    activate Redis
+    Redis-->>Booking: 6. Статус места
+    deactivate Redis
+
+    alt Место свободно
+        Booking->>PG: 7. SQL INSERT INTO bookings
+        activate PG
+        PG-->>Booking: 8. booking_id = bk_789
+        deactivate PG
+        Booking->>Kafka: 9. Kafka BookingCreated
+    else Место занято
+        Booking-->>GW: 8. gRPC 409 Conflict
+        GW-->>User: 409 "Место занято"
+    end
+
+    Note over User,External: ЭТАП 3: СОЗДАНИЕ ПЛАТЕЖА
+
+    Booking->>Payment: 10. gRPC CreatePayment
+    activate Payment
+    Payment->>Bank: 11. REST/HTTPS Создание платежа
+    activate Bank
+    Bank-->>Payment: 12. Статус платежа
+    deactivate Bank
+    Payment->>PG: 13. SQL INSERT INTO payments
+    activate PG
+    PG-->>Payment: 14. payment_id = pay_123
+    deactivate PG
+    Payment-->>Booking: 15. gRPC Статус оплаты
+    deactivate Payment
+
+    alt Оплата успешна
+        Booking->>Kafka: 16. Kafka PaymentSucceeded
+    else Оплата не прошла
+        Booking->>Payment: 16. gRPC Отмена платежа
+        Booking->>PG: 17. SQL UPDATE bookings SET status='cancelled'
+    end
+
+    Note over Kafka,Analytics: ЭТАП 4: АСИНХРОННАЯ ОБРАБОТКА
+
+    Kafka->>Analytics: 18. Kafka PaymentSucceeded
+    Kafka->>Notify: 19. Kafka PaymentSucceeded
+    Kafka->>Ticket: 20. Kafka PaymentSucceeded
+    activate Ticket
+
+    Note over User,External: ЭТАП 5: ГЕНЕРАЦИЯ БИЛЕТА
+
+    Ticket->>PG: 21. SQL INSERT INTO tickets
+    activate PG
+    PG-->>Ticket: 22. ticket_id = tkt_001
+    deactivate PG
+    Ticket->>Kafka: 23. Kafka TicketIssued
+    deactivate Ticket
+
+    Kafka->>Analytics: 24. Kafka TicketIssued
+    Kafka->>Notify: 25. Kafka TicketIssued
+    activate Notify
+    Notify->>External: 26. REST/HTTPS SMS/Email/Push
+    activate External
+    External-->>Notify: 27. OK
+    deactivate External
+    deactivate Notify
+
+    Kafka->>Booking: 28. Kafka TicketIssued
+    activate Booking
+    Booking->>PG: 29. SQL UPDATE bookings SET status='confirmed'
+    deactivate Booking
+
+    Note over User,External: ЭТАП 6: ОТВЕТ КЛИЕНТУ
+
+    Booking-->>GW: 30. gRPC Статус бронирования
+    deactivate Booking
+    GW-->>LB: 31. HTTP Результаты
+    deactivate GW
+    activate LB
+    LB-->>CDN: 32. HTTP Результаты
+    deactivate LB
+    activate CDN
+    CDN-->>User: 33. HTTPS Результаты
+    deactivate CDN
+```
 
 
 
@@ -460,6 +679,7 @@ https://cdn.otus.ru/media/public/8f/ca/Отказоустои_чивость____
 
 
 ### Схема репликации
+
 
 ### План DR
 
