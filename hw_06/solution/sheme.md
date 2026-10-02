@@ -899,7 +899,6 @@ https://github.com/mostanina95-commits/localStudyOtusSD/blob/hw2/hw_05/%D0%A8%D0
 
 
 
-
 # 9. Тестирование
 ### 9.1 План нагрузочного тестирования
 ### 9.2 Chaos-эксперименты 
